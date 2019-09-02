@@ -1,7 +1,7 @@
 import Vorpal from 'vorpal'
 import { dokcerFunction, Method } from './'
 const dockerStop = async (args: any) => {
-  dokcerFunction(args, Method.stop);
+  await dokcerFunction(args, Method.stop);
 };
 
 module.exports = (program: Vorpal) => program

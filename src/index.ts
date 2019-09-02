@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import color from 'chalk'
 import * as path from 'path'
 import Vorpal from 'vorpal'
 export const program = new Vorpal();
@@ -41,7 +42,6 @@ program
  *                  Command that helps with `git` daily use
  * ============================================================================
  */
-
 program
   .use(path.resolve(__dirname, './commands/git/fullFetch.js'))
 
@@ -50,23 +50,31 @@ program
  *                  Command that helps with `aws` daily use
  * ============================================================================
  */
-
 program
   .use(path.resolve(__dirname, './commands/aws/profiles.js'))
   .use(path.resolve(__dirname, './commands/aws/ec2.js'))
   .use(path.resolve(__dirname, './commands/aws/lambda.js'));
 
-
+const listOfInteractiveCommands = [
+  /aws profile select.*/,
+  /aws profile config.*/
+]
 
 if (noargs) {
   program.delimiter("dops$").show().exec("help");
 } else {
-  (async () => {
-    await program
-      .delimiter("")
-      .show()
-      .exec(process.argv.slice(2).join(" "));
-    process.exit();
-  })();
+      try {
+      listOfInteractiveCommands.forEach(regex => {
+        if (process.argv.slice(2).join(" ").match(regex)) {
+          program.delimiter(color.cyan("-".repeat(120))).show()
+          .parse(process.argv);
+        }
+      });
+      program.parse(process.argv);
+    }
+    catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
 }
 
