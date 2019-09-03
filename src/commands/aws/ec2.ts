@@ -1,17 +1,18 @@
 import AWS from "aws-sdk"
-import { DescribeInstancesResult, Instance, Reservation, InstanceState } from "aws-sdk/clients/ec2";
+import { DescribeInstancesResult, Instance, Reservation, InstanceState, DescribeRegionsResult } from "aws-sdk/clients/ec2";
 import Table from "cli-table"
 import YAML from "js-yaml"
 import ora from "ora"
 import Vorpal from 'vorpal'
 import { getConfig } from "."
+import { Regions } from "aws-sdk/clients/ssm";
 
 const spinner = ora("Loading unicorns");
 
 module.exports = (program: Vorpal) => {
   program
     .command(
-      "aws ec2 instances ls",
+      "aws ec2 instance ls",
       "aws list ec2 instances for actual region"
     )
     .option(
@@ -27,34 +28,68 @@ module.exports = (program: Vorpal) => {
       if (config !== undefined) {
         config["apiVersion"] = "2016-11-15";
         const params = { DryRun: false };
-        if (!args.options.region === undefined) {
-          config['region'] = args.options.region
-        }
-        const ec2 = new AWS.EC2(config);
-        const result: DescribeInstancesResult = await ec2.describeInstances(params).promise();
         let instances: Instance[] = [];
-        if (result.Reservations !== undefined) {
-          result.Reservations.forEach((res: Reservation) => {
-            instances = [...instances, ...(res.Instances || [])];
-          });
-        }
         const instanceWithRelevantProps: any = { instances: {} };
-        for (const inst of instances) {
-          
-          instanceWithRelevantProps["instances"][inst.InstanceId || "-"] = {
-            id: inst.InstanceId || "-", 
-            name: inst.KeyName || "-",
-            type: inst.InstanceType || "-",
-            zone: (config as AWS.Config).region || "-",
-            state: (inst.State as InstanceState).Name as string || "-",
-            publicIp: inst.PublicIpAddress || "-",
-            privateIp: inst.PrivateIpAddress || "-",
-            publicDns: inst.PublicDnsName || "-",
-            privateDns: inst.PrivateDnsName || "-",
-            vpcID: inst.VpcId || "-",
-            subnetId: inst.SubnetId || "-",
-            sgIds: (inst.SecurityGroups || []).map(sg => sg.GroupId).join(",") || "-"
+        if (args.options.region !== "all") {
+          if (args.options.region !== undefined) {
+            config['region'] = args.options.region
           }
+          const ec2 = new AWS.EC2(config);
+          const result: DescribeInstancesResult = await ec2.describeInstances(params).promise();
+          if (result.Reservations !== undefined) {
+            result.Reservations.forEach((res: Reservation) => {
+              instances = [...instances, ...(res.Instances || [])];
+            });
+          }
+          for (const inst of instances) {
+            instanceWithRelevantProps["instances"][inst.InstanceId || "-"] = {
+              id: inst.InstanceId || "-",
+              name: inst.KeyName || "-",
+              type: inst.InstanceType || "-",
+              zone: config["region"] || "-",
+              state: (inst.State as InstanceState).Name as string || "-",
+              publicIp: inst.PublicIpAddress || "-",
+              privateIp: inst.PrivateIpAddress || "-",
+              publicDns: inst.PublicDnsName || "-",
+              privateDns: inst.PrivateDnsName || "-",
+              vpcID: inst.VpcId || "-",
+              subnetId: inst.SubnetId || "-",
+              sgIds: (inst.SecurityGroups || []).map(sg => sg.GroupId).join(",") || "-"
+            }
+          }
+        }
+        else { // region === "all"
+          const ec2 = new AWS.EC2(config);
+          const regionsResult: DescribeRegionsResult = await ec2.describeRegions().promise();
+          await Promise.all(
+            (regionsResult.Regions || []).map(
+              async reg => {
+                config["region"] = reg.RegionName;
+                const ec2 = new AWS.EC2(config);
+                const result: DescribeInstancesResult = await ec2.describeInstances(params).promise();
+                if (result.Reservations !== undefined) {
+                  result.Reservations.forEach((res: Reservation) => {
+                    instances = [...instances, ...(res.Instances || [])]; // append new instances to total instances for always have that var
+                    for (const inst of (res.Instances || [])) {
+                      instanceWithRelevantProps["instances"][inst.InstanceId || "-"] = {
+                        id: inst.InstanceId || "-",
+                        name: inst.KeyName || "-",
+                        type: inst.InstanceType || "-",
+                        zone: reg.RegionName || "-",
+                        state: (inst.State as InstanceState).Name as string || "-",
+                        publicIp: inst.PublicIpAddress || "-",
+                        privateIp: inst.PrivateIpAddress || "-",
+                        publicDns: inst.PublicDnsName || "-",
+                        privateDns: inst.PrivateDnsName || "-",
+                        vpcID: inst.VpcId || "-",
+                        subnetId: inst.SubnetId || "-",
+                        sgIds: (inst.SecurityGroups || []).map(sg => sg.GroupId).join(",") || "-"
+                      }
+                    }
+                  });
+                }
+              }
+            ))
         }
         if (args.options.format === undefined) {
           const table = new Table(
@@ -64,15 +99,14 @@ module.exports = (program: Vorpal) => {
             })
 
           table.push(...(Object.values(instanceWithRelevantProps["instances"]).map((inst: any) => {
-            console.log(inst)
-            const { name, id, type, zone, state, vpcID, subnetId, sgIds } =  inst;
+            const { name, id, type, zone, state, vpcID, subnetId, sgIds } = inst;
             return Object.values({ name, id, type, zone, state, vpcID, subnetId, sgIds });
           }))
           );
           program.log(table.toString());
 
         } else if (args.options.format.toLowerCase() === "json") {
-          console.dir(instanceWithRelevantProps,{ depth: 4, colors: true});
+          console.dir(instanceWithRelevantProps, { depth: 4, colors: true });
         } else if (args.options.format.toLowerCase() === "yaml") {
           program.log(
             YAML.dump(instanceWithRelevantProps)
