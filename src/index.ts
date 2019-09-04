@@ -60,11 +60,6 @@ const listOfInteractiveCommands = [
   /aws profile config.*/
 ]
 
-/**
- * ===========================================================================
- *                  Command that helps with `aws` daily use
- * ============================================================================
- */
 
 if (noargs) {
   program.delimiter("dops$").show().exec("help");
