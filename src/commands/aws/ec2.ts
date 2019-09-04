@@ -1,5 +1,5 @@
 import AWS from "aws-sdk"
-import { DescribeInstancesResult, Instance, Reservation, InstanceState, DescribeRegionsResult } from "aws-sdk/clients/ec2";
+import { DescribeInstancesResult, DescribeRegionsResult, Instance, InstanceState, Reservation } from "aws-sdk/clients/ec2";
 import Table from "cli-table"
 import YAML from "js-yaml"
 import ora from "ora"
@@ -25,13 +25,13 @@ module.exports = (program: Vorpal) => {
     .action(async args => {
       const config: any = await getConfig(program);
       if (config !== undefined) {
-        config["apiVersion"] = "2016-11-15";
+        config.apiVersion = "2016-11-15";
         const params = { DryRun: false };
         let instances: Instance[] = [];
         const instanceWithRelevantProps: any = { instances: {} };
         if (args.options.region !== "all") {
           if (args.options.region !== undefined) {
-            config['region'] = args.options.region
+            config.region = args.options.region
           }
           const ec2 = new AWS.EC2(config);
           const result: DescribeInstancesResult = await ec2.describeInstances(params).promise();
@@ -41,11 +41,11 @@ module.exports = (program: Vorpal) => {
             });
           }
           for (const inst of instances) {
-            instanceWithRelevantProps["instances"][inst.InstanceId || "-"] = {
+            instanceWithRelevantProps.instances[inst.InstanceId || "-"] = {
               id: inst.InstanceId || "-",
               name: inst.KeyName || "-",
               type: inst.InstanceType || "-",
-              zone: config["region"] || "-",
+              zone: config.region || "-",
               state: (inst.State as InstanceState).Name as string || "-",
               publicIp: inst.PublicIpAddress || "-",
               privateIp: inst.PrivateIpAddress || "-",
@@ -63,14 +63,14 @@ module.exports = (program: Vorpal) => {
           await Promise.all(
             (regionsResult.Regions || []).map(
               async reg => {
-                config["region"] = reg.RegionName;
+                config.region = reg.RegionName;
                 const ec2 = new AWS.EC2(config);
                 const result: DescribeInstancesResult = await ec2.describeInstances(params).promise();
                 if (result.Reservations !== undefined) {
                   result.Reservations.forEach((res: Reservation) => {
                     instances = [...instances, ...(res.Instances || [])]; // append new instances to total instances for always have that var
                     for (const inst of (res.Instances || [])) {
-                      instanceWithRelevantProps["instances"][inst.InstanceId || "-"] = {
+                      instanceWithRelevantProps.instances[inst.InstanceId || "-"] = {
                         id: inst.InstanceId || "-",
                         name: inst.KeyName || "-",
                         type: inst.InstanceType || "-",
@@ -97,7 +97,7 @@ module.exports = (program: Vorpal) => {
               colWidths: [15, 25, 10, 13, 10, 25, 30, 30]
             })
 
-          table.push(...(Object.values(instanceWithRelevantProps["instances"]).map((inst: any) => {
+          table.push(...(Object.values(instanceWithRelevantProps.instances).map((inst: any) => {
             const { name, id, type, zone, state, vpcID, subnetId, sgIds } = inst;
             return Object.values({ name, id, type, zone, state, vpcID, subnetId, sgIds });
           }))

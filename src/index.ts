@@ -53,7 +53,8 @@ program
 program
   .use(path.resolve(__dirname, './commands/aws/profiles.js'))
   .use(path.resolve(__dirname, './commands/aws/ec2.js'))
-  .use(path.resolve(__dirname, './commands/aws/lambda.js'));
+  .use(path.resolve(__dirname, './commands/aws/lambda.js'))
+  .use(path.resolve(__dirname, './commands/aws/secretsManager.js'))
 
 const listOfInteractiveCommands = [
   /aws profile select.*/,
