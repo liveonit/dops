@@ -5,11 +5,11 @@ import * as path from 'path'
 import Vorpal from 'vorpal'
 export const program = new Vorpal();
 import os from 'os'
+const homedir = os.homedir();
 import * as pkg from '../package.json'
 import { Storage } from './utils'
 process.env.AWS_SDK_LOAD_CONFIG = 'false'
-const homedir = os.homedir();
-export const storage = new Storage(`${homedir}/.${pkg.name}`);
+export const storage = new Storage(`${homedir}/.${pkg.name}/${pkg.name}.cfg`);
 
 program.history(`${pkg.name}`);
 
@@ -59,6 +59,12 @@ const listOfInteractiveCommands = [
   /aws profile select.*/,
   /aws profile config.*/
 ]
+
+/**
+ * ===========================================================================
+ *                  Command that helps with `aws` daily use
+ * ============================================================================
+ */
 
 if (noargs) {
   program.delimiter("dops$").show().exec("help");

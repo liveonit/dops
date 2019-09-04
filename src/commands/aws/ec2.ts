@@ -5,7 +5,6 @@ import YAML from "js-yaml"
 import ora from "ora"
 import Vorpal from 'vorpal'
 import { getConfig } from "."
-import { Regions } from "aws-sdk/clients/ssm";
 
 const spinner = ora("Loading unicorns");
 
