@@ -24,7 +24,7 @@ const noargs = process.argv.slice(2).length === 0;
 program
   .use(path.resolve(__dirname, './commands/ubuntu/restart.js'))
   .use(path.resolve(__dirname, './commands/ubuntu/shutdown.js'))
-
+  .use(path.resolve(__dirname, './commands/ubuntu/jsonToYaml.js'));
 
 /**
  * ===========================================================================
